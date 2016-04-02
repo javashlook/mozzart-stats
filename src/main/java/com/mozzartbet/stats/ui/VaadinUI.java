@@ -2,6 +2,8 @@ package com.mozzartbet.stats.ui;
 
 import static com.google.common.collect.Lists.*;
 
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.StringUtils;
 
@@ -27,28 +29,27 @@ public class VaadinUI extends UI {
 
 	private final TeamRepository teamRepository;
 
-	private final TeamEditor teamEditor;
+	private final TeamForm frmTeam;
 	private final Grid grid;
-	private final TextField textFilter;
+
+	private final TextField txtFilter;
 	private final Button btnNew;
 
 	@Autowired
-	public VaadinUI(TeamRepository repo, TeamEditor editor) {
-		this.teamRepository = repo;
-		this.teamEditor = editor;
+	public VaadinUI(TeamRepository teampRepository, TeamForm frmTeam) {
+		this.teamRepository = teampRepository;
+		this.frmTeam = frmTeam;
 		this.grid = new Grid();
-		this.textFilter = new TextField();
+		this.txtFilter = new TextField();
 		this.btnNew = new Button("New team", FontAwesome.PLUS);
 	}
 
 	@Override
 	protected void init(VaadinRequest request) {
-		// build layout
-		HorizontalLayout actions = new HorizontalLayout(textFilter, btnNew);
-		VerticalLayout mainLayout = new VerticalLayout(actions, grid, teamEditor);
+		HorizontalLayout actions = new HorizontalLayout(txtFilter, btnNew);
+		VerticalLayout mainLayout = new VerticalLayout(actions, grid, frmTeam);
 		setContent(mainLayout);
 
-		// Configure layouts and components
 		actions.setSpacing(true);
 		mainLayout.setMargin(true);
 		mainLayout.setSpacing(true);
@@ -56,42 +57,39 @@ public class VaadinUI extends UI {
 		grid.setHeight(300, Unit.PIXELS);
 		grid.setColumns("id", "name", "mozzartName");
 
-		textFilter.setInputPrompt("Filter by name");
+		txtFilter.setInputPrompt("Filter by name");
 
-		// Hook logic to components
+		txtFilter.addTextChangeListener(e -> listTeams(e.getText()));
 
-		// Replace listing with filtered content when user changes filter
-		textFilter.addTextChangeListener(e -> listTeams(e.getText()));
-
-		// Connect selected Customer to editor or hide if none is selected
 		grid.addSelectionListener(e -> {
 			if (e.getSelected().isEmpty()) {
-				teamEditor.setVisible(false);
+				frmTeam.setVisible(false);
 			}
-				else {
-					teamEditor.editTeam((Team) grid.getSelectedRow());
-				}
-			});
+			else {
+				frmTeam.editTeam((Team) grid.getSelectedRow());
+			}
+		});
 
-		btnNew.addClickListener(e -> teamEditor.editTeam(new Team("New", "NEW")));
+		btnNew.addClickListener(e -> frmTeam.editTeam(new Team("New", "NEW")));
 
-		teamEditor.setChangeHandler(() -> {
-			teamEditor.setVisible(false);
-			listTeams(textFilter.getValue());
+		frmTeam.setChangeHandler(() -> {
+			frmTeam.setVisible(false);
+			listTeams(txtFilter.getValue());
 		});
 
 		listTeams(null);
 	}
 
 	private void listTeams(String text) {
+		final List<Team> teams;
 		if (StringUtils.isEmpty(text)) {
-			grid.setContainerDataSource(
-					new BeanItemContainer<Team>(Team.class, newArrayList(teamRepository.findAll())));
+			teams = newArrayList(teamRepository.findAll());
 		}
 		else {
-			grid.setContainerDataSource(new BeanItemContainer<Team>(Team.class,
-					teamRepository.findByNameStartsWithIgnoreCase(text)));
+			teams = teamRepository.findByNameStartsWithIgnoreCase(text);
 		}
+
+		grid.setContainerDataSource(new BeanItemContainer<Team>(Team.class, teams));
 	}
 
 }
